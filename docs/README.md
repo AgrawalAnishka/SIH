@@ -240,7 +240,13 @@ Validation: Rule-based and automated quality checks
 
 9. Role-Based Interfaces
 
+Role| Major Functions
+Government Official| Post challenges, manage challenges, evaluate progress, discover scale-up opportunities
+Startup| Discover challenges, apply, track applications, participate in pilots
+Supervisor| Quality checks, compliance verification, duplicate detection, validation
+Administrator| Platform management, user management and monitoring
 
+```
 
 
 
