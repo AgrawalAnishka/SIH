@@ -166,22 +166,27 @@ def complete_oauth_profile_view(request):
 def google_auth_view(request):
     """
     Verify a Google ID token issued by GIS, enforce domain/role rules, then
-    create or retrieve the Django user and establish a Django session — exactly
-    as login_view does for password auth, so all downstream views (me_view,
-    ProtectedRoute, etc.) work without modification.
+    create or retrieve the Django user and establish a Django session.
+    
+    **Smart role detection:**
+    - Existing users: role is auto-detected from their account (login mode)
+    - New users: role must be provided and domain is validated (signup mode)
 
     Expected request body:
-        { "credential": "<Google ID token JWT>", "role": "department"|"startup" }
+        {
+            "credential": "<Google ID token JWT>",
+            "role": "department"|"startup"  // Required for NEW users only
+        }
 
     Returns (200):
-        { "role": str, "user_id": int }  — identical shape to login_view
+        { "role": str, "user_id": int, "is_new_user": bool }
     """
     token = request.data.get('credential')
-    role  = request.data.get('role')
+    role  = request.data.get('role')  # Optional for existing users
 
-    if not token or role not in ('department', 'startup'):
+    if not token:
         return Response(
-            {'error': 'Invalid payload. "credential" and "role" (department|startup) are required.'},
+            {'error': 'Invalid payload. "credential" is required.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -207,33 +212,39 @@ def google_auth_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # ── 2. Enforce domain ↔ role business rules ───────────────────────────────
-    if not validate_email_domain(email, role):
-        if role == 'department':
+    # ── 2. Check if user already exists (login) or is new (signup) ────────────
+    user = User.objects.filter(email=email).first()
+    
+    if user:
+        # Existing user — use their existing role (login mode)
+        role = user.role
+    else:
+        # New user — role must be provided (signup mode)
+        if not role or role not in ('department', 'startup'):
             return Response(
-                {'error': 'Unauthorized domain. Government departments require a valid .gov.in or .nic.in email.'},
-                status=status.HTTP_403_FORBIDDEN,
+                {'error': 'Role is required for new users. Please use the signup flow.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        else:
-            return Response(
-                {'error': 'Government emails cannot register as startups.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        
+        # Enforce domain ↔ role business rules for NEW users only
+        if not validate_email_domain(email, role):
+            if role == 'department':
+                return Response(
+                    {'error': 'Unauthorized domain. Government departments require a valid .gov.in or .nic.in email.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            else:
+                return Response(
+                    {'error': 'Government emails cannot register as startups.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
     # ── 3. Look up or create the Django user ──────────────────────────────────
-    user = User.objects.filter(email=email).first()
     is_new_user = False
 
     if user:
-        # Prevent cross-role hijacking: the email is already owned by a
-        # different role — return 409 rather than silently overwriting.
-        if user.role and user.role != role:
-            return Response(
-                {'error': f'This email is already registered under a different role ({user.role}).'},
-                status=status.HTTP_409_CONFLICT,
-            )
-        # Existing user, same role — fall through to session creation below.
-
+        # Existing user logging in — role already determined above
+        pass
     else:
         # First-time sign-in: provision a new account.
         is_new_user = True

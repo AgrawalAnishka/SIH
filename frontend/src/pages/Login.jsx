@@ -189,9 +189,8 @@ export default function Login() {
                     {loading ? 'Logging in…' : 'Log In'}
                   </ShimmerButton>
                 </form>
-                {/* Google OAuth — role inferred at login time from existing account */}
-                <GoogleAuthButton role="startup" />
-                <GoogleAuthButton role="department" />
+                {/* Google OAuth — role auto-detected for existing users */}
+                <GoogleAuthButton />
                 {/* Trust line */}
                 <p className="text-xs text-center text-slate-400 mt-4">
                   DPIIT registration not required to apply — compete on merit first.

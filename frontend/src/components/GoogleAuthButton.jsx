@@ -9,17 +9,17 @@ import { useToast } from './ui/toast';
  *
  * Renders the Google Identity Services "Continue with Google" button plus a
  * visual "or" divider above it.  After a successful sign-in the component:
- *   1. Sends the GIS credential JWT + role to /api/auth/google/ for
- *      cryptographic verification and session creation.
- *   2. Calls /api/auth/me/ to retrieve the full user profile.
- *   3. Persists the profile to localStorage (same shape as password login).
- *   4. Navigates to the role-appropriate dashboard.
+ *   1. Sends the GIS credential JWT + role (optional) to /api/auth/google/
+ *   2. Backend auto-detects role for existing users, requires it for new users
+ *   3. Calls /api/auth/me/ to retrieve the full user profile.
+ *   4. Persists the profile to localStorage (same shape as password login).
+ *   5. Navigates to the role-appropriate dashboard.
  *
  * Props
  * ─────
- * role  {string}  'department' | 'startup'
- *                 Passed to the backend for domain enforcement and used
- *                 client-side to pick the post-auth redirect route.
+ * role  {string}  'department' | 'startup' | undefined
+ *                 - For signup pages: REQUIRED (enforces domain rules)
+ *                 - For login page: OPTIONAL (auto-detected from account)
  */
 export default function GoogleAuthButton({ role }) {
   const navigate     = useNavigate();
