@@ -48,6 +48,10 @@ export const api = {
     request('/api/auth/logout/', { method: 'POST' }),
   me: () =>
     request('/api/auth/me/'),
+  googleAuth: (credential, role) =>
+    request('/api/auth/google/', { method: 'POST', body: JSON.stringify({ credential, role }) }),
+  completeOAuthProfile: (data) =>
+    request('/api/auth/complete-profile/', { method: 'POST', body: JSON.stringify(data) }),
 
   // Departments
   getDepartments: () => request('/api/departments/'),

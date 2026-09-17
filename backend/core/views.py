@@ -8,6 +8,12 @@ from rest_framework.authentication import SessionAuthentication
 from .models import *
 from .serializers import *
 from .permissions import *
+from .utils import validate_email_domain
+
+# Google ID-token verification (google-auth library)
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from django.conf import settings
 from .eligibility import run_eligibility_check
 
 
@@ -99,6 +105,186 @@ def signup_view(request):
 
     return Response({'detail': 'Account created. Please log in.'},
                     status=status.HTTP_201_CREATED)
+
+
+# ── Google OAuth Profile Completion ────────────────────────────────────────────
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def complete_oauth_profile_view(request):
+    """
+    Complete the profile for a user who signed up via Google OAuth.
+    Called after first Google sign-in to collect startup/department details.
+    """
+    user = request.user
+    role = user.role
+
+    if role == 'startup':
+        if not hasattr(user, 'startup'):
+            return Response({'error': 'Startup profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validate required fields
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({'error': 'Startup name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        startup = user.startup
+        startup.name = name.replace('[INCOMPLETE] ', '')
+        startup.sector_tags = request.data.get('sector_tags', [])
+        startup.team_size = max(1, int(request.data.get('team_size', 1) or 1))
+        startup.pitch_summary = request.data.get('pitch_summary', '')
+        startup.founded_year = int(request.data.get('founded_year', 2024) or 2024)
+        startup.registration_status = request.data.get('registration_status', 'unregistered')
+        startup.save()
+
+    elif role == 'department':
+        if not hasattr(user, 'department'):
+            return Response({'error': 'Department profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validate required fields
+        name = request.data.get('name', '').strip()
+        ministry = request.data.get('ministry', '').strip()
+        if not name:
+            return Response({'error': 'Department name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not ministry:
+            return Response({'error': 'Ministry is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        dept = user.department
+        dept.name = name.replace('[INCOMPLETE] ', '')
+        dept.ministry = ministry
+        dept.save()
+
+    return Response({'detail': 'Profile completed successfully.'}, status=status.HTTP_200_OK)
+
+
+# ── Google OAuth view ─────────────────────────────────────────────────────────
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def google_auth_view(request):
+    """
+    Verify a Google ID token issued by GIS, enforce domain/role rules, then
+    create or retrieve the Django user and establish a Django session — exactly
+    as login_view does for password auth, so all downstream views (me_view,
+    ProtectedRoute, etc.) work without modification.
+
+    Expected request body:
+        { "credential": "<Google ID token JWT>", "role": "department"|"startup" }
+
+    Returns (200):
+        { "role": str, "user_id": int }  — identical shape to login_view
+    """
+    token = request.data.get('credential')
+    role  = request.data.get('role')
+
+    if not token or role not in ('department', 'startup'):
+        return Response(
+            {'error': 'Invalid payload. "credential" and "role" (department|startup) are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ── 1. Cryptographically verify the Google ID token ───────────────────────
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            settings.GOOGLE_OAUTH_CLIENT_ID,
+        )
+    except ValueError as exc:
+        return Response(
+            {'error': f'Invalid Google token: {str(exc).lower()}'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    email          = idinfo.get('email', '').lower().strip()
+    email_verified = idinfo.get('email_verified', False)
+
+    if not email or not email_verified:
+        return Response(
+            {'error': 'Google account email is not verified.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ── 2. Enforce domain ↔ role business rules ───────────────────────────────
+    if not validate_email_domain(email, role):
+        if role == 'department':
+            return Response(
+                {'error': 'Unauthorized domain. Government departments require a valid .gov.in or .nic.in email.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        else:
+            return Response(
+                {'error': 'Government emails cannot register as startups.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    # ── 3. Look up or create the Django user ──────────────────────────────────
+    user = User.objects.filter(email=email).first()
+    is_new_user = False
+
+    if user:
+        # Prevent cross-role hijacking: the email is already owned by a
+        # different role — return 409 rather than silently overwriting.
+        if user.role and user.role != role:
+            return Response(
+                {'error': f'This email is already registered under a different role ({user.role}).'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        # Existing user, same role — fall through to session creation below.
+
+    else:
+        # First-time sign-in: provision a new account.
+        is_new_user = True
+        base_username = email.split('@')[0]
+        username      = base_username
+        counter       = 1
+        while User.objects.filter(username=username).exists():
+            username = f'{base_username}_{counter}'
+            counter += 1
+
+        user = User.objects.create(
+            username   = username,
+            email      = email,
+            first_name = idinfo.get('given_name',  ''),
+            last_name  = idinfo.get('family_name', ''),
+            role       = role,
+        )
+        user.set_unusable_password()
+        user.save()
+
+        # Create MINIMAL profile - user will complete it on next screen
+        # We use a placeholder name so the frontend knows to show onboarding
+        display_name = f"[INCOMPLETE] {idinfo.get('name', username)}"
+        
+        if role == 'startup':
+            Startup.objects.create(
+                user                = user,
+                name                = display_name,  # Marked as incomplete
+                sector_tags         = [],
+                team_size           = 1,
+                pitch_summary       = '',
+                founded_year        = 2024,
+                registration_status = 'unregistered',
+            )
+        elif role == 'department':
+            Department.objects.create(
+                user     = user,
+                name     = display_name,  # Marked as incomplete
+                ministry = '',
+            )
+
+    # ── 4. Establish a Django session (same as login_view) ────────────────────
+    # We must set the backend explicitly because authenticate() was not called.
+    user.backend = 'django.contrib.auth.backends.ModelBackend'
+    login(request, user)
+
+    return Response({
+        'role': user.role,
+        'user_id': user.id,
+        'is_new_user': is_new_user  # Frontend needs this to decide onboarding
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

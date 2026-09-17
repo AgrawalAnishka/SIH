@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import *
+from .views import google_auth_view
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -19,6 +20,8 @@ urlpatterns = [
     path('auth/logout/',     logout_view,           name='logout'),
     path('auth/me/',         me_view,               name='me'),
     path('auth/signup/',     signup_view,           name='signup'),
+    path('auth/google/',     google_auth_view,      name='google-auth'),
+    path('auth/complete-profile/', complete_oauth_profile_view, name='complete-oauth-profile'),
     path('applications/<int:pk>/log-view/',         log_application_view,  name='log-application-view'),
     path('applications/<int:pk>/novelty-check/',    novelty_check,         name='novelty-check'),
     path('applications/<int:pk>/start-prototype-phase/', start_prototype_phase, name='start-prototype-phase'),

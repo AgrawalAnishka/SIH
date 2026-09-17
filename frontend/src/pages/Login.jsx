@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { useToast } from '../components/ui/toast';
 import { NumberTicker } from '../components/NumberTicker';
 import { ShimmerButton } from '../components/ShimmerButton';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const DEMO = [
   { role: 'startup',    username: 'meditriage-ai' },
@@ -188,6 +189,9 @@ export default function Login() {
                     {loading ? 'Logging in…' : 'Log In'}
                   </ShimmerButton>
                 </form>
+                {/* Google OAuth — role inferred at login time from existing account */}
+                <GoogleAuthButton role="startup" />
+                <GoogleAuthButton role="department" />
                 {/* Trust line */}
                 <p className="text-xs text-center text-slate-400 mt-4">
                   DPIIT registration not required to apply — compete on merit first.
@@ -211,6 +215,8 @@ export default function Login() {
                   </div>
                   <ArrowRight size={18} className="text-[#4F46E5]" />
                 </button>
+                {/* Google sign-up for startups */}
+                <GoogleAuthButton role="startup" />
                 <button onClick={() => navigate('/signup/department')}
                   className="w-full flex items-center justify-between px-4 py-4 rounded-xl border-2 border-[#0F766E]/30 bg-[#0F766E]/5 hover:bg-[#0F766E]/10 transition group">
                   <div className="flex items-center gap-3">
@@ -224,6 +230,8 @@ export default function Login() {
                   </div>
                   <ArrowRight size={18} className="text-[#0F766E]" />
                 </button>
+                {/* Google sign-up for departments — requires .gov.in / .nic.in email */}
+                <GoogleAuthButton role="department" />
                 {/* Trust line */}
                 <p className="text-xs text-center text-slate-400 mt-2">
                   Authorized government department access only.

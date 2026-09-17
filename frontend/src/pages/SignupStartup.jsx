@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Lightbulb, FileText, BadgeCheck, Rocket, Zap, Star } from 'lucide-react';
 import { api } from '../lib/api';
 import { useToast } from '../components/ui/toast';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const SECTORS = [
   { id: 'healthtech',   label: 'Healthtech',   color: '#4F46E5' },
@@ -49,6 +50,9 @@ function Field({ label, value, onChange, placeholder, type = 'text', required })
 export default function SignupStartup() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useState(new URLSearchParams(window.location.search));
+  const isOAuthCompletion = searchParams.get('oauth') === 'complete';
+  
   const [formData, setFormData] = useState({
     name: '', sector_tags: [], team_size: '', founded_year: '',
     pitch_summary: '', registration_status: '', username: '', password: '',
@@ -67,18 +71,47 @@ export default function SignupStartup() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.signup({
-        ...formData,
-        role: 'startup',
-        team_size: parseInt(formData.team_size) || 1,
-        founded_year: parseInt(formData.founded_year) || 2024,
-      });
-      toast({ title: 'Account created!', description: 'Please log in.' });
-      navigate('/login');
+      if (isOAuthCompletion) {
+        // Complete OAuth profile
+        await api.completeOAuthProfile({
+          name: formData.name,
+          sector_tags: formData.sector_tags,
+          team_size: parseInt(formData.team_size) || 1,
+          founded_year: parseInt(formData.founded_year) || 2024,
+          pitch_summary: formData.pitch_summary,
+          registration_status: formData.registration_status,
+        });
+        
+        // Refresh user data in localStorage to remove [INCOMPLETE] prefix
+        const meRes = await api.me();
+        const userData = {
+          role:                meRes.role,
+          user_id:             meRes.user_id,
+          username:            meRes.username,
+          name:                meRes.name,
+          sector_tags:         meRes.sector_tags,
+          registration_status: meRes.registration_status,
+          startup_id:          meRes.startup_id,
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        toast({ title: 'Profile completed!', description: 'Welcome to GovLaunch.' });
+        navigate('/dashboard');
+      } else {
+        // Regular password signup
+        await api.signup({
+          ...formData,
+          role: 'startup',
+          team_size: parseInt(formData.team_size) || 1,
+          founded_year: parseInt(formData.founded_year) || 2024,
+        });
+        toast({ title: 'Account created!', description: 'Please log in.' });
+        navigate('/login');
+      }
     } catch (err) {
       let msg = 'Please try again';
-      try { msg = JSON.parse(err.message).detail || msg; } catch (_) {}
-      toast({ title: 'Registration failed', description: msg, variant: 'destructive' });
+      try { msg = JSON.parse(err.message).detail || err.message || msg; } catch (_) {}
+      toast({ title: isOAuthCompletion ? 'Profile update failed' : 'Registration failed', description: msg, variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
@@ -230,11 +263,13 @@ export default function SignupStartup() {
               </div>
             </div>
 
-            {/* Credentials */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <Field label="Username" value={formData.username} onChange={set('username')} placeholder="Choose username" required />
-              <Field label="Password" type="password" value={formData.password} onChange={set('password')} placeholder="Create password" required />
-            </div>
+            {/* Credentials - only show for password signup */}
+            {!isOAuthCompletion && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <Field label="Username" value={formData.username} onChange={set('username')} placeholder="Choose username" required />
+                <Field label="Password" type="password" value={formData.password} onChange={set('password')} placeholder="Create password" required />
+              </div>
+            )}
 
             {/* Submit */}
             <motion.button type="submit" disabled={loading}
@@ -248,9 +283,13 @@ export default function SignupStartup() {
                 boxShadow: '0 4px 16px rgba(79,70,229,0.3)', marginTop: 4,
               }}
             >
-              {loading ? 'Creating Account…' : 'Create Startup Account'}
+              {loading ? (isOAuthCompletion ? 'Saving Profile…' : 'Creating Account…') : (isOAuthCompletion ? 'Complete Profile' : 'Create Startup Account')}
               {!loading && <ArrowRight size={18} />}
             </motion.button>
+
+            {/* Google OAuth — only show for new signups, not completion */}
+            {!isOAuthCompletion && <GoogleAuthButton role="startup" />}
+
           </form>
 
           <p style={{ textAlign: 'center', fontSize: 13, color: '#94A3B8', marginTop: 24 }}>

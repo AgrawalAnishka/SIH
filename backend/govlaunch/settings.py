@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -104,3 +108,12 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ]
 }
+
+# ── Google OAuth ───────────────────────────────────────────────────────────────
+# Set GOOGLE_OAUTH_CLIENT_ID in your environment (or .env file via a loader).
+# The empty-string default keeps the app bootable in CI/local without credentials.
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
+
+# Authoritative government domain suffixes for role=department enforcement.
+# Subdomain tree matching is used (e.g. dept.health.gov.in is accepted).
+GOV_EMAIL_DOMAINS = ['.gov.in', '.nic.in']
