@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, useSpring, useInView, AnimatePresence } from 'motion/react';
 import { ArrowRight, Target, Rocket, TrendingUp, Award, Wallet, Trophy, ShieldCheck, BarChart2, Users, Lock, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { NumberTicker } from '../components/NumberTicker';
 import Reveal from '../components/Reveal';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 // ── Floating particle ─────────────────────────────────────────────────────────
 function Particle({ x, y, size, duration, delay, color }) {
@@ -113,17 +115,17 @@ function TiltCard({ children, style }) {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const WHY_ITEMS = [
-  { icon: Award,      title: 'Win Government Contracts',  desc: 'Top solutions get the opportunity to work directly with government departments at scale.' },
-  { icon: Wallet,     title: 'Funding & Support',         desc: 'Qualified finalists receive funding to build and test their prototypes in real environments.' },
-  { icon: TrendingUp, title: 'Boost Your Rating',         desc: 'Earn rating points with every evaluation, unlock higher-tier opportunities automatically.' },
-  { icon: Trophy,     title: 'Earn Recognition',          desc: 'Collect achievement badges, build your trust profile, and showcase measurable impact.' },
+  { icon: Award,      titleKey: 'landing.why1Title', descKey: 'landing.why1Desc' },
+  { icon: Wallet,     titleKey: 'landing.why2Title', descKey: 'landing.why2Desc' },
+  { icon: TrendingUp, titleKey: 'landing.why3Title', descKey: 'landing.why3Desc' },
+  { icon: Trophy,     titleKey: 'landing.why4Title', descKey: 'landing.why4Desc' },
 ];
 
 const TRUST_ITEMS = [
-  { icon: ShieldCheck, label: 'DPIIT Verified Platform' },
-  { icon: BarChart2,   label: 'Transparent Evaluation' },
-  { icon: Users,       label: 'Equal Opportunity' },
-  { icon: Lock,        label: 'Data Security' },
+  { icon: ShieldCheck, labelKey: 'landing.trust1' },
+  { icon: BarChart2,   labelKey: 'landing.trust2' },
+  { icon: Users,       labelKey: 'landing.trust3' },
+  { icon: Lock,        labelKey: 'landing.trust4' },
 ];
 
 // Particles config
@@ -146,6 +148,7 @@ const isNew = (d) => d && (Date.now() - new Date(d)) < 7 * 86400000;
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
 
@@ -213,25 +216,30 @@ export default function Landing() {
         </div>
 
         <div style={{ display: 'flex', gap: 32 }}>
-          {['Home', 'Problem Statements', 'How It Works'].map((l, i) => (
+          {[
+            { label: t('nav.home'), href: '#' },
+            { label: t('nav.problemStatements'), href: '/discover' },
+            { label: t('nav.howItWorks'), href: '#' },
+          ].map((l, i) => (
             <motion.a
-              key={l}
-              href={l === 'Problem Statements' ? '/discover' : '#'}
+              key={l.label}
+              href={l.href}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.08 }}
               whileHover={{ color: '#fff', y: -1 }}
               style={{ color: '#64748B', fontSize: 14, fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
             >
-              {l}
+              {l.label}
             </motion.a>
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <LanguageSwitcher variant="compact-dark" />
           <MagneticButton onClick={() => navigate('/login')}
             style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: 14, fontWeight: 500, padding: '8px 16px', borderRadius: 8 }}>
-            Log In
+            {t('landing.logIn')}
           </MagneticButton>
           <MagneticButton onClick={() => navigate('/login')}
             style={{
@@ -239,7 +247,7 @@ export default function Landing() {
               color: '#2DD4BF', fontSize: 14, fontWeight: 600, padding: '8px 20px', borderRadius: 8,
               backdropFilter: 'blur(8px)',
             }}>
-            Government Login
+            {t('landing.govLogin')}
           </MagneticButton>
         </div>
       </motion.nav>
@@ -327,13 +335,13 @@ export default function Landing() {
               style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF9933', boxShadow: '0 0 8px #FF9933' }}
             />
             <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600, letterSpacing: '0.1em' }}>
-              DIGITAL INDIA · STARTUP INDIA · 2026
+              {t('landing.badge')}
             </span>
           </motion.div>
 
           {/* Main headline — word by word reveal */}
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 'clamp(42px,6vw,76px)', fontWeight: 800, lineHeight: 1.08, marginBottom: 28 }}>
-            {'Where Startups'.split(' ').map((word, i) => (
+            {t('landing.heroLine1').split(' ').map((word, i) => (
               <motion.span
                 key={i}
                 initial={{ opacity: 0, y: 40, rotateX: -40 }}
@@ -345,7 +353,7 @@ export default function Landing() {
               </motion.span>
             ))}
             <br />
-            {'Meet the State.'.split(' ').map((word, i) => (
+            {t('landing.heroLine2').split(' ').map((word, i) => (
               <motion.span
                 key={i}
                 initial={{ opacity: 0, y: 40, rotateX: -40 }}
@@ -368,7 +376,7 @@ export default function Landing() {
             transition={{ duration: 0.7, delay: 0.7 }}
             style={{ fontSize: 19, color: '#64748B', lineHeight: 1.7, maxWidth: 540, margin: '0 auto 44px' }}
           >
-            Government departments post real problems. Startups compete on merit — not paperwork. Every bid timestamped, every contract auto-drafted.
+            {t('landing.heroSub')}
           </motion.p>
 
           {/* CTAs */}
@@ -388,7 +396,7 @@ export default function Landing() {
                 boxShadow: '0 8px 32px rgba(79,70,229,0.45), inset 0 1px 0 rgba(255,255,255,0.15)',
               }}
             >
-              Browse Open Challenges
+              {t('landing.browseBtn')}
               <ArrowRight size={18} />
             </MagneticButton>
             <MagneticButton
@@ -402,7 +410,7 @@ export default function Landing() {
                 backdropFilter: 'blur(8px)',
               }}
             >
-              Government Department
+              {t('landing.govBtn')}
             </MagneticButton>
           </motion.div>
         </motion.div>
@@ -421,11 +429,11 @@ export default function Landing() {
       <div style={{ position: 'relative', padding: '80px 48px', background: 'rgba(255,255,255,0.015)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
           {[
-            { icon: Target,     value: stats.challenges, label: 'Open Challenges',    accent: '#FF9933', desc: 'Active government problem statements' },
-            { icon: Rocket,     value: stats.startups,   label: 'Startups Competing', accent: '#138808', desc: 'Registered startups on the platform' },
-            { icon: TrendingUp, value: stats.pilots,     label: 'Pilots Scaled',      accent: '#4F46E5', desc: 'Successful pilots adopted nationally' },
+            { icon: Target,     value: stats.challenges, labelKey: 'landing.statOpenChallenges',    accent: '#FF9933', descKey: 'landing.statOpenDesc' },
+            { icon: Rocket,     value: stats.startups,   labelKey: 'landing.statStartups', accent: '#138808', descKey: 'landing.statStartupsDesc' },
+            { icon: TrendingUp, value: stats.pilots,     labelKey: 'landing.statPilots',      accent: '#4F46E5', descKey: 'landing.statPilotsDesc' },
           ].map((s, i) => (
-            <Reveal key={s.label} direction="up" delay={i * 0.1}>
+            <Reveal key={s.labelKey} direction="up" delay={i * 0.1}>
               <TiltCard style={{ borderRadius: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', padding: '32px 28px' }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: `${s.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                   <s.icon size={24} color={s.accent} />
@@ -433,8 +441,8 @@ export default function Landing() {
                 <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 52, fontWeight: 800, color: '#fff', lineHeight: 1, marginBottom: 8 }}>
                   <NumberTicker value={s.value} className="" />
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#E2E8F0', marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 13, color: '#475569' }}>{s.desc}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#E2E8F0', marginBottom: 4 }}>{t(s.labelKey)}</div>
+                <div style={{ fontSize: 13, color: '#475569' }}>{t(s.descKey)}</div>
               </TiltCard>
             </Reveal>
           ))}
@@ -447,13 +455,13 @@ export default function Landing() {
           <Reveal direction="up">
             <div style={{ textAlign: 'center', marginBottom: 64 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#4F46E5', letterSpacing: '0.15em', marginBottom: 14, textTransform: 'uppercase' }}>
-                Live Opportunities
+                {t('landing.liveSection')}
               </div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, color: '#fff', marginBottom: 16 }}>
-                Active Problem Statements
+                {t('landing.activeProblem')}
               </h2>
               <p style={{ fontSize: 17, color: '#475569', maxWidth: 500, margin: '0 auto' }}>
-                Real challenges from government departments, ready for your solution.
+                {t('landing.activeProblemSub')}
               </p>
             </div>
           </Reveal>
@@ -546,13 +554,13 @@ export default function Landing() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                           paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                           <div>
-                            <div style={{ fontSize: 10, color: '#475569', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Budget</div>
+                            <div style={{ fontSize: 10, color: '#475569', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>{t('landing.budget')}</div>
                             <div style={{ fontSize: 15, fontWeight: 700, color: getSectorColor(c.sector_tags) }}>
                               {fmt(c.budget_ceiling)}
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 10, color: '#475569', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Timeline</div>
+                            <div style={{ fontSize: 10, color: '#475569', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>{t('landing.timeline')}</div>
                             <div style={{ fontSize: 15, fontWeight: 700, color: '#94A3B8' }}>{c.timeline_weeks}w</div>
                           </div>
                         </div>
@@ -571,17 +579,17 @@ export default function Landing() {
           <Reveal direction="up">
             <div style={{ textAlign: 'center', marginBottom: 64 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#138808', letterSpacing: '0.15em', marginBottom: 14, textTransform: 'uppercase' }}>
-                Why GovLaunch
+                {t('landing.whyLabel')}
               </div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 'clamp(28px,4vw,48px)', fontWeight: 800, color: '#fff' }}>
-                Built for Builders
+                {t('landing.whyTitle')}
               </h2>
             </div>
           </Reveal>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 24 }}>
             {WHY_ITEMS.map((item, i) => (
-              <Reveal key={item.title} direction="up" delay={i * 0.1}>
+              <Reveal key={item.titleKey} direction="up" delay={i * 0.1}>
                 <TiltCard style={{
                   borderRadius: 20, padding: 28,
                   background: 'rgba(255,255,255,0.03)',
@@ -599,8 +607,8 @@ export default function Landing() {
                   >
                     <item.icon size={24} color="#6366F1" />
                   </motion.div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>{item.title}</div>
-                  <div style={{ fontSize: 14, color: '#475569', lineHeight: 1.65 }}>{item.desc}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>{t(item.titleKey)}</div>
+                  <div style={{ fontSize: 14, color: '#475569', lineHeight: 1.65 }}>{t(item.descKey)}</div>
                 </TiltCard>
               </Reveal>
             ))}
@@ -615,14 +623,14 @@ export default function Landing() {
         display: 'flex', justifyContent: 'center',
         flexWrap: 'wrap', gap: 40,
       }}>
-        {TRUST_ITEMS.map((t, i) => (
-          <Reveal key={t.label} direction="up" delay={i * 0.07}>
+        {TRUST_ITEMS.map((item, i) => (
+          <Reveal key={item.labelKey} direction="up" delay={i * 0.07}>
             <motion.div
               whileHover={{ y: -3, color: '#94A3B8' }}
               style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#374151', cursor: 'default' }}
             >
-              <t.icon size={16} />
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{t.label}</span>
+              <item.icon size={16} />
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{t(item.labelKey)}</span>
             </motion.div>
           </Reveal>
         ))}

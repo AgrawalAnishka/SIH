@@ -51,7 +51,12 @@ def logout_view(request):
 @api_view(['GET'])
 def me_view(request):
     user = request.user
-    data = {'role': user.role, 'user_id': user.id, 'username': user.username}
+    data = {
+        'role': user.role,
+        'user_id': user.id,
+        'username': user.username,
+        'preferred_language': user.preferred_language
+    }
     if user.role == 'department' and hasattr(user, 'department'):
         data['name'] = user.department.name
         data['department_id'] = user.department.id
@@ -1080,3 +1085,127 @@ def startup_rating_history(request, pk):
     """GET /api/startups/<id>/rating-history/"""
     history = RatingHistory.objects.filter(startup_id=pk).order_by('-created_at')[:20]
     return Response(RatingHistorySerializer(history, many=True).data)
+
+
+# ── Translation API ────────────────────────────────────────────────────────────
+
+from .translation_service import translate as translate_text
+from django.core.cache import cache
+from django.utils import timezone
+from datetime import timedelta
+
+
+@api_view(['POST'])
+def translate_view(request):
+    """
+    Translate text from source to target language.
+    
+    Request body:
+    {
+        "text": "string to translate",
+        "source_lang": "en",
+        "target_lang": "hi"
+    }
+    
+    Response:
+    {
+        "translated_text": "अनुवादित पाठ",
+        "source": "cache|bhashini|google|fallback",
+        "cached": true|false
+    }
+    
+    Rate limiting: 100 requests per user per hour
+    """
+    # Rate limiting check
+    user = request.user
+    if user.is_authenticated:
+        rate_key = f'translate_rate_limit_{user.id}'
+        current_count = cache.get(rate_key, 0)
+        
+        if current_count >= 100:
+            return Response(
+                {'error': 'Rate limit exceeded. Maximum 100 translations per hour.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        # Increment counter
+        cache.set(rate_key, current_count + 1, timeout=3600)  # 1 hour
+    
+    # Validate request
+    text = request.data.get('text', '').strip()
+    source_lang = request.data.get('source_lang', 'en')
+    target_lang = request.data.get('target_lang', 'en')
+    
+    if not text:
+        return Response(
+            {'error': 'Text field is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Limit text length to prevent abuse
+    if len(text) > 5000:
+        return Response(
+            {'error': 'Text too long. Maximum 5000 characters.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validate language codes
+    valid_langs = ['en', 'hi', 'mr', 'bn', 'ta', 'te', 'kn', 'ml']
+    if source_lang not in valid_langs or target_lang not in valid_langs:
+        return Response(
+            {'error': f'Invalid language code. Supported: {", ".join(valid_langs)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Perform translation
+    try:
+        result = translate_text(text, source_lang, target_lang)
+        return Response(result)
+    except Exception as e:
+        return Response(
+            {
+                'error': 'Translation failed',
+                'detail': str(e),
+                'translated_text': text,  # Fallback to original
+                'source': 'error_fallback'
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def translation_logs_view(request):
+    """
+    Get translation logs for monitoring (admin only).
+    """
+    limit = int(request.GET.get('limit', 50))
+    logs = TranslationLog.objects.all()[:limit]
+    serializer = TranslationLogSerializer(logs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def translation_stats_view(request):
+    """
+    Get translation cache statistics.
+    """
+    from django.db.models import Count
+    
+    total_cached = TranslationCache.objects.count()
+    by_lang = TranslationCache.objects.values('target_lang').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Get recent failures (last 24 hours)
+    yesterday = timezone.now() - timedelta(days=1)
+    recent_failures = TranslationLog.objects.filter(
+        timestamp__gte=yesterday,
+        success=False
+    ).count()
+    
+    return Response({
+        'total_cached_translations': total_cached,
+        'translations_by_language': list(by_lang),
+        'recent_failures_24h': recent_failures
+    })

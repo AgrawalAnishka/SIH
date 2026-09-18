@@ -5,7 +5,20 @@ from .models import *
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
-        fields = ['id', 'username', 'role']
+        fields = ['id', 'username', 'role', 'preferred_language']
+
+
+class TranslationCacheSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TranslationCache
+        fields = ['source_text_hash', 'source_lang', 'target_lang', 'source_text', 'translated_text', 'created_at']
+        read_only_fields = ['source_text_hash', 'created_at']
+
+
+class TranslationLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TranslationLog
+        fields = ['id', 'timestamp', 'source_lang', 'target_lang', 'provider', 'success', 'error_message']
 
 
 class DepartmentSerializer(serializers.ModelSerializer):

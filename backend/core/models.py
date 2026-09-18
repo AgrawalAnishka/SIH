@@ -8,6 +8,21 @@ class User(AbstractUser):
         ('department', 'Department'), ('startup', 'Startup'),
         ('evaluator', 'Evaluator'), ('admin', 'Admin')
     ])
+    preferred_language = models.CharField(
+        max_length=10,
+        choices=[
+            ('en', 'English'),
+            ('hi', 'Hindi'),
+            ('mr', 'Marathi'),
+            ('bn', 'Bengali'),
+            ('ta', 'Tamil'),
+            ('te', 'Telugu'),
+            ('kn', 'Kannada'),
+            ('ml', 'Malayalam'),
+        ],
+        default='en',
+        blank=True
+    )
 
 
 class Department(models.Model):
@@ -212,3 +227,42 @@ class PrototypeSubmission(models.Model):
     submitted_at    = models.DateTimeField(auto_now_add=True)
 
     def __str__(self): return f'Prototype for App #{self.application_id}'
+
+
+# ── Multilingual Support ───────────────────────────────────────────────────────
+
+class TranslationCache(models.Model):
+    """Cache for translated content to avoid repeated API calls."""
+    source_text_hash = models.CharField(max_length=64, db_index=True)
+    source_lang = models.CharField(max_length=8, default='en')
+    target_lang = models.CharField(max_length=8)
+    source_text = models.TextField()
+    translated_text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('source_text_hash', 'target_lang')
+        indexes = [
+            models.Index(fields=['source_text_hash', 'target_lang']),
+        ]
+
+    def __str__(self):
+        return f'Translation {self.source_lang}→{self.target_lang} (hash: {self.source_text_hash[:8]})'
+
+
+class TranslationLog(models.Model):
+    """Log translation API failures for monitoring."""
+    timestamp = models.DateTimeField(auto_now_add=True)
+    source_text = models.TextField()
+    source_lang = models.CharField(max_length=8)
+    target_lang = models.CharField(max_length=8)
+    provider = models.CharField(max_length=20)  # 'bhashini', 'google', etc.
+    success = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        status = 'SUCCESS' if self.success else 'FAILED'
+        return f'{status} {self.provider} {self.source_lang}→{self.target_lang} at {self.timestamp}'

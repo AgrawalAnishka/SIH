@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Target, TrendingUp, Rocket, ChevronDown, Building2, Zap, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { useToast } from '../components/ui/toast';
 import { NumberTicker } from '../components/NumberTicker';
 import { ShimmerButton } from '../components/ShimmerButton';
 import GoogleAuthButton from '../components/GoogleAuthButton';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const DEMO = [
   { role: 'startup',    username: 'meditriage-ai' },
@@ -32,8 +34,9 @@ const ROLE_DOT = { startup: '#4F46E5', department: '#0F766E', evaluator: '#F59E0
 export default function Login() {
   const navigate  = useNavigate();
   const { toast } = useToast();
+  const { t }     = useTranslation();
 
-  const [tab,      setTab]      = useState('login');   // 'login' | 'create'
+  const [tab,      setTab]      = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
@@ -59,15 +62,21 @@ export default function Login() {
       const routes = { department: '/challenges', startup: '/dashboard', evaluator: '/evaluate', admin: '/audit' };
       navigate(routes[userData.role] ?? '/');
     } catch (err) {
-      let msg = 'Invalid username or password';
+      let msg = t('auth.loginError');
       try { const p = JSON.parse(err.message); msg = p.detail || p.error || msg; } catch (_) { if (!err.message?.startsWith('{')) msg = err.message || msg; }
-      toast({ title: 'Login failed', description: msg, variant: 'destructive' });
+      toast({ title: t('auth.login') + ' ' + t('common.error').toLowerCase(), description: msg, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   const fillDemo = (u) => { setUsername(u); setPassword('demo1234'); setTab('login'); };
+
+  const STATS_CONFIG = [
+    { icon: Target,     valueKey: 'challenges', labelKey: 'auth.statOpenChallenges' },
+    { icon: Rocket,     valueKey: 'startups',   labelKey: 'auth.statStartups' },
+    { icon: TrendingUp, valueKey: 'pilots',     labelKey: 'auth.statPilots' },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -94,48 +103,47 @@ export default function Login() {
             }} />
             <span className="font-space-grotesk text-xl font-bold text-white tracking-tight">GovLaunch</span>
           </div>
-          <motion.button
-            onClick={() => navigate('/')}
-            whileHover={{ x: -3 }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 8, padding: '6px 12px', color: '#94A3B8',
-              fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Home
-          </motion.button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <LanguageSwitcher variant="compact-dark" />
+            <motion.button
+              onClick={() => navigate('/')}
+              whileHover={{ x: -3 }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8, padding: '6px 12px', color: '#94A3B8',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+              {t('auth.home')}
+            </motion.button>
+          </div>
         </div>
 
         {/* Headline */}
         <div className="relative z-10 mt-auto mb-auto py-10 max-w-md">
           <h1 className="font-space-grotesk text-4xl font-bold text-white leading-[1.15] mb-4">
-            Merit gets you evaluated.{' '}
+            {t('auth.meritLine')}{' '}
             <span style={{ background: 'linear-gradient(90deg,#FF9933,#138808)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Registration gets you paid.
+              {t('auth.registrationLine')}
             </span>
           </h1>
           <p className="text-slate-400 text-base leading-relaxed max-w-sm">
-            One platform. Two sides. Every application timestamped, every view logged, every contract auto-drafted.
+            {t('auth.heroPlatformDesc')}
           </p>
         </div>
 
         {/* Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-4 mt-auto">
-          {[
-            { icon: Target,     value: stats.challenges, label: 'Open Challenges' },
-            { icon: Rocket,     value: stats.startups,   label: 'Startups' },
-            { icon: TrendingUp, value: stats.pilots,     label: 'Pilots Scaled' },
-          ].map(s => (
-            <div key={s.label} className="flex flex-col gap-1">
+          {STATS_CONFIG.map(s => (
+            <div key={s.labelKey} className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5">
                 <s.icon size={13} style={{ color: '#FF9933' }} />
-                <span className="text-[11px] text-slate-400 uppercase tracking-wide">{s.label}</span>
+                <span className="text-[11px] text-slate-400 uppercase tracking-wide">{t(s.labelKey)}</span>
               </div>
               <div className="text-2xl font-space-grotesk font-bold text-white">
-                <NumberTicker value={s.value} className="text-2xl font-space-grotesk font-bold text-white" />
+                <NumberTicker value={stats[s.valueKey]} className="text-2xl font-space-grotesk font-bold text-white" />
               </div>
             </div>
           ))}
@@ -153,14 +161,14 @@ export default function Login() {
 
             {/* Tab header */}
             <div className="flex border-b border-slate-200 mb-6">
-              {['login', 'create'].map(t => (
-                <button key={t} type="button" onClick={() => setTab(t)}
+              {['login', 'create'].map(tabKey => (
+                <button key={tabKey} type="button" onClick={() => setTab(tabKey)}
                   className={`flex-1 pb-3 text-sm font-semibold transition-colors ${
-                    tab === t ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600'
+                    tab === tabKey ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600'
                   }`}
                   style={{ marginBottom: -1 }}
                 >
-                  {t === 'login' ? 'Log In' : 'Create Account'}
+                  {tabKey === 'login' ? t('auth.logIn') : t('auth.createAccountTab')}
                 </button>
               ))}
             </div>
@@ -168,17 +176,18 @@ export default function Login() {
             {tab === 'login' && (
               <>
                 <div className="mb-5">
-                  <p className="text-xs uppercase tracking-widest text-slate-400 font-medium mb-0.5">Welcome back</p>
-                  <h2 className="text-2xl font-bold text-slate-900">Log in to GovLaunch</h2>
+                  <p className="text-xs uppercase tracking-widest text-slate-400 font-medium mb-0.5">{t('auth.welcomeBack')}</p>
+                  <h2 className="text-2xl font-bold text-slate-900">{t('auth.logInToGovlaunch')}</h2>
                 </div>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Username</label>
-                    <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. meditriage-ai" required
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('auth.username')}</label>
+                    <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                      placeholder={t('auth.usernamePlaceholder')} required
                       className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9933] focus:border-[#FF9933] transition" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('auth.password')}</label>
                     <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
                       className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9933] focus:border-[#FF9933] transition" />
                   </div>
@@ -186,21 +195,19 @@ export default function Login() {
                     background="rgba(15,12,30,1)" shimmerColor="#FF9933"
                     shimmerDuration="2.5s" borderRadius="10px"
                     className="w-full h-11 text-sm font-semibold text-white mt-1">
-                    {loading ? 'Logging in…' : 'Log In'}
+                    {loading ? t('auth.loggingIn') : t('auth.logIn')}
                   </ShimmerButton>
                 </form>
-                {/* Google OAuth — role auto-detected for existing users */}
                 <GoogleAuthButton />
-                {/* Trust line */}
                 <p className="text-xs text-center text-slate-400 mt-4">
-                  DPIIT registration not required to apply — compete on merit first.
+                  {t('auth.dpiitNotRequired')}
                 </p>
               </>
             )}
 
             {tab === 'create' && (
               <div className="space-y-3">
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Join GovLaunch</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-4">{t('auth.joinGovlaunch')}</h2>
                 <button onClick={() => navigate('/signup/startup')}
                   className="w-full flex items-center justify-between px-4 py-4 rounded-xl border-2 border-[#4F46E5]/30 bg-[#4F46E5]/5 hover:bg-[#4F46E5]/10 transition group">
                   <div className="flex items-center gap-3">
@@ -208,13 +215,12 @@ export default function Login() {
                       <Rocket size={20} className="text-white" />
                     </div>
                     <div className="text-left">
-                      <div className="text-sm font-semibold text-slate-900">I'm a Startup</div>
-                      <div className="text-xs text-slate-500">Apply to government challenges</div>
+                      <div className="text-sm font-semibold text-slate-900">{t('auth.imStartup')}</div>
+                      <div className="text-xs text-slate-500">{t('auth.applyGovChallenges')}</div>
                     </div>
                   </div>
                   <ArrowRight size={18} className="text-[#4F46E5]" />
                 </button>
-                {/* Google sign-up for startups */}
                 <GoogleAuthButton role="startup" />
                 <button onClick={() => navigate('/signup/department')}
                   className="w-full flex items-center justify-between px-4 py-4 rounded-xl border-2 border-[#0F766E]/30 bg-[#0F766E]/5 hover:bg-[#0F766E]/10 transition group">
@@ -223,17 +229,15 @@ export default function Login() {
                       <Building2 size={20} className="text-white" />
                     </div>
                     <div className="text-left">
-                      <div className="text-sm font-semibold text-slate-900">I'm a Government Department</div>
-                      <div className="text-xs text-slate-500">Post challenges and find solutions</div>
+                      <div className="text-sm font-semibold text-slate-900">{t('auth.imGovDept')}</div>
+                      <div className="text-xs text-slate-500">{t('auth.postChallenges')}</div>
                     </div>
                   </div>
                   <ArrowRight size={18} className="text-[#0F766E]" />
                 </button>
-                {/* Google sign-up for departments — requires .gov.in / .nic.in email */}
                 <GoogleAuthButton role="department" />
-                {/* Trust line */}
                 <p className="text-xs text-center text-slate-400 mt-2">
-                  Authorized government department access only.
+                  {t('auth.govAccessOnly')}
                 </p>
               </div>
             )}
@@ -243,7 +247,7 @@ export default function Login() {
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
             <button type="button" onClick={() => setDemoOpen(o => !o)}
               className="w-full flex items-center justify-between px-5 py-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-              <span>Demo Accounts</span>
+              <span>{t('auth.demoAccounts')}</span>
               <motion.span animate={{ rotate: demoOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 <ChevronDown size={16} className="text-slate-400" />
               </motion.span>

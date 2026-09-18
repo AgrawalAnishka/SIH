@@ -7,6 +7,7 @@ import {
   ChevronRight, Sparkles
 } from 'lucide-react';
 import { api } from '../lib/api';
+import LanguageSwitcher from './LanguageSwitcher';
 
 // ── Role configuration ────────────────────────────────────────────────────────
 const ROLE_CONFIG = {
@@ -303,6 +304,8 @@ export default function AppSidebar() {
         </div>
 
         {/* Logout */}
+        <LanguageSwitcher variant="sidebar" />
+        <div style={{ height: 8 }} /> {/* Spacer */}
         <LogoutButton onClick={handleLogout} />
       </div>
     </div>

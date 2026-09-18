@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Lightbulb, FileText, BadgeCheck, Rocket, Zap, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { useToast } from '../components/ui/toast';
 import GoogleAuthButton from '../components/GoogleAuthButton';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const SECTORS = [
   { id: 'healthtech',   label: 'Healthtech',   color: '#4F46E5' },
@@ -15,9 +17,9 @@ const SECTORS = [
 ];
 
 const REG_STATUSES = [
-  { id: 'unregistered',    label: 'Idea Stage',       sublabel: 'No incorporation yet',  icon: Lightbulb, color: '#F59E0B' },
-  { id: 'incorporated',    label: 'Incorporated',      sublabel: 'DPIIT pending',          icon: FileText,  color: '#4F46E5' },
-  { id: 'dpiit_recognized',label: 'DPIIT Recognized',  sublabel: 'Fully registered',       icon: BadgeCheck,color: '#10B981' },
+  { id: 'unregistered',     label: 'Idea Stage',       sublabel: 'No incorporation yet',  icon: Lightbulb, color: '#F59E0B' },
+  { id: 'incorporated',     label: 'Incorporated',      sublabel: 'DPIIT pending',          icon: FileText,  color: '#4F46E5' },
+  { id: 'dpiit_recognized', label: 'DPIIT Recognized',  sublabel: 'Fully registered',       icon: BadgeCheck,color: '#10B981' },
 ];
 
 const FIELD_STYLE = {
@@ -50,9 +52,10 @@ function Field({ label, value, onChange, placeholder, type = 'text', required })
 export default function SignupStartup() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [searchParams] = useState(new URLSearchParams(window.location.search));
   const isOAuthCompletion = searchParams.get('oauth') === 'complete';
-  
+
   const [formData, setFormData] = useState({
     name: '', sector_tags: [], team_size: '', founded_year: '',
     pitch_summary: '', registration_status: '', username: '', password: '',
@@ -62,9 +65,7 @@ export default function SignupStartup() {
   const set = (key) => (e) => setFormData(p => ({ ...p, [key]: e.target.value }));
   const toggleSector = (id) => setFormData(p => ({
     ...p,
-    sector_tags: p.sector_tags.includes(id)
-      ? p.sector_tags.filter(s => s !== id)
-      : [...p.sector_tags, id],
+    sector_tags: p.sector_tags.includes(id) ? p.sector_tags.filter(s => s !== id) : [...p.sector_tags, id],
   }));
 
   const handleSubmit = async (e) => {
@@ -72,7 +73,6 @@ export default function SignupStartup() {
     setLoading(true);
     try {
       if (isOAuthCompletion) {
-        // Complete OAuth profile
         await api.completeOAuthProfile({
           name: formData.name,
           sector_tags: formData.sector_tags,
@@ -81,30 +81,17 @@ export default function SignupStartup() {
           pitch_summary: formData.pitch_summary,
           registration_status: formData.registration_status,
         });
-        
-        // Refresh user data in localStorage to remove [INCOMPLETE] prefix
         const meRes = await api.me();
         const userData = {
-          role:                meRes.role,
-          user_id:             meRes.user_id,
-          username:            meRes.username,
-          name:                meRes.name,
-          sector_tags:         meRes.sector_tags,
-          registration_status: meRes.registration_status,
-          startup_id:          meRes.startup_id,
+          role: meRes.role, user_id: meRes.user_id, username: meRes.username,
+          name: meRes.name, sector_tags: meRes.sector_tags,
+          registration_status: meRes.registration_status, startup_id: meRes.startup_id,
         };
         localStorage.setItem('user', JSON.stringify(userData));
-        
         toast({ title: 'Profile completed!', description: 'Welcome to GovLaunch.' });
         navigate('/dashboard');
       } else {
-        // Regular password signup
-        await api.signup({
-          ...formData,
-          role: 'startup',
-          team_size: parseInt(formData.team_size) || 1,
-          founded_year: parseInt(formData.founded_year) || 2024,
-        });
+        await api.signup({ ...formData, role: 'startup', team_size: parseInt(formData.team_size) || 1, founded_year: parseInt(formData.founded_year) || 2024 });
         toast({ title: 'Account created!', description: 'Please log in.' });
         navigate('/login');
       }
@@ -115,6 +102,12 @@ export default function SignupStartup() {
     } finally { setLoading(false); }
   };
 
+  const PERKS = [
+    { icon: Zap,        textKey: 'signup.perk1' },
+    { icon: Star,       textKey: 'signup.perk2' },
+    { icon: BadgeCheck, textKey: 'signup.perk3' },
+  ];
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'Inter', sans-serif" }}>
 
@@ -123,7 +116,6 @@ export default function SignupStartup() {
         background: 'linear-gradient(135deg, #0D1117 0%, #0A0E1A 60%, #0C1020 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48 }}>
 
-        {/* Orbs */}
         <motion.div animate={{ x: [0,25,0], y: [0,-20,0] }} transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
           style={{ position: 'absolute', top: -60, left: -60, width: 320, height: 320, borderRadius: '50%',
             background: 'radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%)', filter: 'blur(40px)' }} />
@@ -134,17 +126,17 @@ export default function SignupStartup() {
         <motion.div initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.15 }}
           style={{ position: 'relative', zIndex: 1, maxWidth: 380 }}>
 
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%',
-              background: 'conic-gradient(from 0deg, #FF9933 0deg 120deg, #ffffff 120deg 240deg, #138808 240deg 360deg)',
-              boxShadow: '0 0 12px rgba(99,102,241,0.5)' }} />
-            <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 18, fontWeight: 800, color: '#fff' }}>
-              GovLaunch
-            </span>
+          {/* Logo + Language switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%',
+                background: 'conic-gradient(from 0deg, #FF9933 0deg 120deg, #ffffff 120deg 240deg, #138808 240deg 360deg)',
+                boxShadow: '0 0 12px rgba(99,102,241,0.5)' }} />
+              <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 18, fontWeight: 800, color: '#fff' }}>GovLaunch</span>
+            </div>
+            <LanguageSwitcher variant="compact-dark" />
           </div>
 
-          {/* Floating icon */}
           <motion.div animate={{ y: [0,-10,0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             style={{ width: 72, height: 72, borderRadius: 20, marginBottom: 28,
               background: 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2))',
@@ -155,25 +147,20 @@ export default function SignupStartup() {
           </motion.div>
 
           <blockquote style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 24, fontWeight: 700, color: '#F1F5F9', lineHeight: 1.4, marginBottom: 16 }}>
-            "Registration is required to sign a contract. It's never required to compete."
+            {t('signup.startupQuote')}
           </blockquote>
           <p style={{ fontSize: 14, color: '#475569', marginBottom: 36, lineHeight: 1.6 }}>
-            GovLaunch believes in equal opportunity for all startups, regardless of registration stage.
+            {t('signup.equalOpportunity')}
           </p>
 
-          {/* Perks */}
-          {[
-            { icon: Zap,  text: 'Apply without DPIIT — compete on merit' },
-            { icon: Star, text: 'Earn rating points with every submission' },
-            { icon: BadgeCheck, text: 'Unlock badges as you grow' },
-          ].map((f, i) => (
+          {PERKS.map((f, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 + i * 0.1 }}
               style={{ display: 'flex', alignItems: 'center', gap: 12,
                 background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
                 borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
               <f.icon size={16} color="#818CF8" />
-              <span style={{ fontSize: 13, color: '#94A3B8' }}>{f.text}</span>
+              <span style={{ fontSize: 13, color: '#94A3B8' }}>{t(f.textKey)}</span>
             </motion.div>
           ))}
         </motion.div>
@@ -187,21 +174,22 @@ export default function SignupStartup() {
 
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#4F46E5', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
-              Startup Portal
+              {t('signup.startupPortal')}
             </div>
             <h1 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 28, fontWeight: 800, color: '#0B0F19', margin: 0 }}>
-              Register your startup
+              {t('signup.registerStartup')}
             </h1>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-            {/* Name */}
-            <Field label="Startup Name" value={formData.name} onChange={set('name')} placeholder="Your startup name" required />
+            <Field label={t('signup.startupName')} value={formData.name} onChange={set('name')}
+              placeholder={t('signup.startupNamePlaceholder')} required />
 
-            {/* Sectors */}
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Sector</label>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                {t('signup.sector')}
+              </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {SECTORS.map(s => {
                   const active = formData.sector_tags.includes(s.id);
@@ -223,25 +211,24 @@ export default function SignupStartup() {
               </div>
             </div>
 
-            {/* Team size + Founded year */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <Field label="Team Size" type="number" value={formData.team_size} onChange={set('team_size')} placeholder="e.g., 5" />
-              <Field label="Founded Year" type="number" value={formData.founded_year} onChange={set('founded_year')} placeholder="e.g., 2024" />
+              <Field label={t('signup.teamSize')} type="number" value={formData.team_size} onChange={set('team_size')} placeholder={t('signup.teamSizePlaceholder')} />
+              <Field label={t('signup.foundedYear')} type="number" value={formData.founded_year} onChange={set('founded_year')} placeholder={t('signup.foundedYearPlaceholder')} />
             </div>
 
-            {/* Pitch summary */}
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Pitch Summary</label>
-              <textarea value={formData.pitch_summary} onChange={set('pitch_summary')} placeholder="Brief description of your startup..."
-                rows={3} style={{
-                  ...FIELD_STYLE, height: 'auto', padding: '10px 14px', resize: 'vertical',
-                  borderColor: '#E2E8F0', lineHeight: 1.6,
-                }} />
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                {t('signup.pitchSummary')}
+              </label>
+              <textarea value={formData.pitch_summary} onChange={set('pitch_summary')}
+                placeholder={t('signup.pitchSummaryPlaceholder')}
+                rows={3} style={{ ...FIELD_STYLE, height: 'auto', padding: '10px 14px', resize: 'vertical', borderColor: '#E2E8F0', lineHeight: 1.6 }} />
             </div>
 
-            {/* Registration status */}
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Registration Status</label>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                {t('signup.registrationStatus')}
+              </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
                 {REG_STATUSES.map(st => {
                   const active = formData.registration_status === st.id;
@@ -263,15 +250,13 @@ export default function SignupStartup() {
               </div>
             </div>
 
-            {/* Credentials - only show for password signup */}
             {!isOAuthCompletion && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <Field label="Username" value={formData.username} onChange={set('username')} placeholder="Choose username" required />
-                <Field label="Password" type="password" value={formData.password} onChange={set('password')} placeholder="Create password" required />
+                <Field label={t('auth.username')} value={formData.username} onChange={set('username')} placeholder={t('signup.choosePlaceholder')} required />
+                <Field label={t('auth.password')} type="password" value={formData.password} onChange={set('password')} placeholder={t('signup.createPasswordPlaceholder')} required />
               </div>
             )}
 
-            {/* Submit */}
             <motion.button type="submit" disabled={loading}
               whileHover={{ scale: 1.01, boxShadow: '0 8px 24px rgba(79,70,229,0.35)' }}
               whileTap={{ scale: 0.98 }}
@@ -283,18 +268,18 @@ export default function SignupStartup() {
                 boxShadow: '0 4px 16px rgba(79,70,229,0.3)', marginTop: 4,
               }}
             >
-              {loading ? (isOAuthCompletion ? 'Saving Profile…' : 'Creating Account…') : (isOAuthCompletion ? 'Complete Profile' : 'Create Startup Account')}
+              {loading
+                ? (isOAuthCompletion ? t('signup.savingProfile') : t('signup.creatingAccount'))
+                : (isOAuthCompletion ? t('signup.completeProfile') : t('signup.createStartupAccount'))}
               {!loading && <ArrowRight size={18} />}
             </motion.button>
 
-            {/* Google OAuth — only show for new signups, not completion */}
             {!isOAuthCompletion && <GoogleAuthButton role="startup" />}
-
           </form>
 
           <p style={{ textAlign: 'center', fontSize: 13, color: '#94A3B8', marginTop: 24 }}>
-            Already registered?{' '}
-            <Link to="/login" style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}>Log in</Link>
+            {t('signup.alreadyRegistered')}{' '}
+            <Link to="/login" style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}>{t('auth.loginNow')}</Link>
           </p>
         </motion.div>
       </div>

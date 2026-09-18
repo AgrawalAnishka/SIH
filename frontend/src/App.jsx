@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { LanguageProvider } from './contexts/LanguageContext';
+import './i18n'; // Initialize i18next
 
 // Layouts
 import AppSidebar from './components/AppSidebar';
@@ -151,9 +153,11 @@ export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
       <ErrorBoundary>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <LanguageProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </LanguageProvider>
       </ErrorBoundary>
     </GoogleOAuthProvider>
   );
