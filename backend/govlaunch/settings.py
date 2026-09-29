@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'core',
+    'kira',
 ]
 
 MIDDLEWARE = [
@@ -106,7 +107,11 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-    ]
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'kira_burst': '10/min',
+        'kira_daily': '150/day',
+    },
 }
 
 # ── Google OAuth ───────────────────────────────────────────────────────────────
