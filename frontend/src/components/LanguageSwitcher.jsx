@@ -19,53 +19,12 @@ const GLOBE_ICON = (
   </svg>
 );
 
-export default function LanguageSwitcher({ variant = 'sidebar' }) {
-  const { i18n } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const currentLang = LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0];
-
-  // Close when clicking outside
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen]);
-
-  const handleSelect = async (code) => {
-    await i18n.changeLanguage(code);
-    setIsOpen(false);
-
-    // Persist to backend if logged in
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.id) {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/users/${user.id}/`,
-          {
-            method: 'PATCH',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ preferred_language: code }),
-          }
-        );
-        if (res.ok) {
-          localStorage.setItem('user', JSON.stringify({ ...user, preferred_language: code }));
-        }
-      } catch (e) {
-        // Non-fatal — localStorage still preserves it locally
-      }
-    }
-  };
-
-  // ── Dropdown list (shared between variants) ──────────────────────────────
-  const DropdownList = ({ align = 'left' }) => (
+// ── Dropdown list — defined OUTSIDE the main component so React never
+//   remounts it unexpectedly. Uses onMouseDown + e.preventDefault() so
+//   the document mousedown outside-click handler doesn't steal focus
+//   before the onClick fires. ──────────────────────────────────────────
+function DropdownList({ isOpen, align, activeLang, onSelect }) {
+  return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -89,11 +48,14 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
           }}
         >
           {LANGUAGES.map((lang) => {
-            const active = lang.code === currentLang.code;
+            const active = lang.code === activeLang;
             return (
               <button
                 key={lang.code}
-                onClick={() => handleSelect(lang.code)}
+                // preventDefault on mousedown prevents the outside-click
+                // handler from firing before onClick
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onSelect(lang.code)}
                 style={{
                   width: '100%',
                   padding: '10px 16px',
@@ -121,8 +83,69 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
       )}
     </AnimatePresence>
   );
+}
 
-  // ── Sidebar variant ───────────────────────────────────────────────────────
+export default function LanguageSwitcher({ variant = 'sidebar' }) {
+  const { i18n } = useTranslation();
+  const [isOpen, setIsOpen]             = useState(false);
+  const [currentLangCode, setCurrentLangCode] = useState(() => i18n.language?.split('-')[0] || 'en');
+  const dropdownRef = useRef(null);
+
+  // Stay in sync when i18next changes language (from anywhere in the app)
+  useEffect(() => {
+    const onChanged = (lng) => setCurrentLangCode(lng.split('-')[0]);
+    i18n.on('languageChanged', onChanged);
+    return () => i18n.off('languageChanged', onChanged);
+  }, [i18n]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const handleSelect = async (code) => {
+    setIsOpen(false);
+    if (code === currentLangCode) return;
+
+    try {
+      await i18n.changeLanguage(code);
+      // Persist to localStorage (i18next-browser-languagedetector reads this key)
+      localStorage.setItem('i18nextLng', code);
+
+      // Persist to backend if logged in
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.id) {
+        fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/users/${user.id}/`,
+          {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ preferred_language: code }),
+          }
+        )
+          .then((res) => {
+            if (res.ok) {
+              localStorage.setItem('user', JSON.stringify({ ...user, preferred_language: code }));
+            }
+          })
+          .catch(() => {/* non-fatal */});
+      }
+    } catch (err) {
+      console.error('[LanguageSwitcher] changeLanguage failed:', err);
+    }
+  };
+
+  const currentLang = LANGUAGES.find(l => l.code === currentLangCode) || LANGUAGES[0];
+
+  // ── Sidebar variant ────────────────────────────────────────────────────────
   if (variant === 'sidebar') {
     return (
       <div ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
@@ -144,7 +167,6 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
           onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
           onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
         >
-          {/* Globe icon */}
           <div style={{
             width: 30, height: 30, borderRadius: 7, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -162,12 +184,12 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
             <path d="M7 10L12 15L17 10H7Z"/>
           </svg>
         </button>
-        <DropdownList align="left" />
+        <DropdownList isOpen={isOpen} align="left" activeLang={currentLangCode} onSelect={handleSelect} />
       </div>
     );
   }
 
-  // ── Compact-dark variant (for dark navbars like Landing page) ──────────────
+  // ── Compact-dark variant (dark navbars like Landing page) ──────────────────
   if (variant === 'compact-dark') {
     return (
       <div ref={dropdownRef} style={{ position: 'relative' }}>
@@ -187,8 +209,6 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
             color: '#CBD5E1',
             transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#CBD5E1'; } }}
         >
           {GLOBE_ICON}
           <span>{currentLang.nativeName}</span>
@@ -197,12 +217,12 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
             <path d="M7 10L12 15L17 10H7Z"/>
           </svg>
         </button>
-        <DropdownList align="right" />
+        <DropdownList isOpen={isOpen} align="right" activeLang={currentLangCode} onSelect={handleSelect} />
       </div>
     );
   }
 
-  // ── Compact variant (for light navbars / login page) ──────────────────────
+  // ── Compact variant (light navbars / login page) ───────────────────────────
   return (
     <div ref={dropdownRef} style={{ position: 'relative' }}>
       <button
@@ -221,8 +241,6 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
           color: '#374151',
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(79,70,229,0.35)'; e.currentTarget.style.background = 'rgba(79,70,229,0.03)'; }}
-        onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; e.currentTarget.style.background = 'white'; } }}
       >
         {GLOBE_ICON}
         <span>{currentLang.nativeName}</span>
@@ -231,7 +249,7 @@ export default function LanguageSwitcher({ variant = 'sidebar' }) {
           <path d="M7 10L12 15L17 10H7Z"/>
         </svg>
       </button>
-      <DropdownList align="right" />
+      <DropdownList isOpen={isOpen} align="right" activeLang={currentLangCode} onSelect={handleSelect} />
     </div>
   );
 }

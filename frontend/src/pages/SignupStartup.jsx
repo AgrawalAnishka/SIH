@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Lightbulb, FileText, BadgeCheck, Rocket, Zap, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -53,7 +53,8 @@ export default function SignupStartup() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [searchParams] = useState(new URLSearchParams(window.location.search));
+  // ✅ useSearchParams — reacts to URL changes, not stale on redirect
+  const [searchParams] = useSearchParams();
   const isOAuthCompletion = searchParams.get('oauth') === 'complete';
 
   const [formData, setFormData] = useState({
@@ -61,6 +62,19 @@ export default function SignupStartup() {
     pitch_summary: '', registration_status: '', username: '', password: '',
   });
   const [loading, setLoading] = useState(false);
+
+  // ✅ Pre-fill name from the [INCOMPLETE] placeholder stored in localStorage
+  useEffect(() => {
+    if (isOAuthCompletion) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.name && user.name.startsWith('[INCOMPLETE]')) {
+        const cleanName = user.name.replace('[INCOMPLETE] ', '').replace('[INCOMPLETE]', '').trim();
+        if (cleanName) {
+          setFormData(p => ({ ...p, name: cleanName }));
+        }
+      }
+    }
+  }, [isOAuthCompletion]);
 
   const set = (key) => (e) => setFormData(p => ({ ...p, [key]: e.target.value }));
   const toggleSector = (id) => setFormData(p => ({
@@ -174,11 +188,26 @@ export default function SignupStartup() {
 
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#4F46E5', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
-              {t('signup.startupPortal')}
+              {isOAuthCompletion ? 'Complete Your Profile' : t('signup.startupPortal')}
             </div>
             <h1 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 28, fontWeight: 800, color: '#0B0F19', margin: 0 }}>
-              {t('signup.registerStartup')}
+              {isOAuthCompletion ? 'Tell us about your startup' : t('signup.registerStartup')}
             </h1>
+            {isOAuthCompletion && (
+              <div style={{
+                marginTop: 14, padding: '12px 16px', borderRadius: 12,
+                background: 'rgba(79,70,229,0.06)', border: '1px solid rgba(79,70,229,0.2)',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <circle cx="12" cy="12" r="10" stroke="#4F46E5" strokeWidth="2"/>
+                  <path d="M12 8v4M12 16h.01" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                <p style={{ fontSize: 13, color: '#4338CA', margin: 0, lineHeight: 1.5 }}>
+                  You're signed in with Google! Just fill in your startup details below to complete setup.
+                </p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

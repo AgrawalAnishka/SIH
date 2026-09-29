@@ -13,6 +13,7 @@ export const useLanguage = () => {
 
 export function LanguageProvider({ children }) {
   const { i18n } = useTranslation();
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -34,8 +35,23 @@ export function LanguageProvider({ children }) {
     initializeLanguage();
   }, [i18n]);
 
+  // Track language changes
+  useEffect(() => {
+    const onLanguageChanged = (lng) => {
+      console.log('[LanguageProvider] Language changed to:', lng);
+      setCurrentLanguage(lng);
+    };
+    
+    i18n.on('languageChanged', onLanguageChanged);
+    
+    // Set initial language
+    setCurrentLanguage(i18n.language);
+    
+    return () => i18n.off('languageChanged', onLanguageChanged);
+  }, [i18n]);
+
   const value = {
-    currentLanguage: i18n.language,
+    currentLanguage,
     changeLanguage: i18n.changeLanguage,
     isInitialized,
   };
