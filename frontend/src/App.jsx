@@ -8,6 +8,7 @@ import './i18n'; // Initialize i18next
 
 // Layouts
 import AppSidebar from './components/AppSidebar';
+import KiraWidget from './features/kira/KiraWidget';
 
 // Public pages
 import Landing from './pages/Landing';
@@ -97,6 +98,7 @@ const AppLayout = ({ children }) => {
       >
         <PageWrapper>{children}</PageWrapper>
       </main>
+      <KiraWidget />
     </div>
   );
 };
