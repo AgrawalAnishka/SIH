@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'core',
     'kira',
+    'ai_assist',
 ]
 
 MIDDLEWARE = [
@@ -122,3 +123,13 @@ GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
 # Authoritative government domain suffixes for role=department enforcement.
 # Subdomain tree matching is used (e.g. dept.health.gov.in is accepted).
 GOV_EMAIL_DOMAINS = ['.gov.in', '.nic.in']
+
+# ── Sahayak AI Engine ──────────────────────────────────────────────────────────
+AI_ASSISTANT_NAME    = os.environ.get('AI_ASSISTANT_NAME', 'Sahayak')
+AI_ENABLED           = os.environ.get('AI_ENABLED', 'true').lower() == 'true'
+LLM_PROVIDER         = os.environ.get('LLM_PROVIDER', 'mock')   # mock | gemini
+LLM_API_KEY          = os.environ.get('LLM_API_KEY', '') or os.environ.get('GEMINI_API_KEY', '')
+LLM_MODEL            = os.environ.get('LLM_MODEL', 'gemini-3.8-flash')
+AI_MAX_INPUT_CHARS   = int(os.environ.get('AI_MAX_INPUT_CHARS', '6000'))
+AI_WORKERS           = int(os.environ.get('AI_WORKERS', '3'))
+PRIORITY_THRESHOLDS  = {'critical': 85, 'high': 65, 'medium': 35}

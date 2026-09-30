@@ -140,4 +140,30 @@ export const api = {
 
   // Admin
   resetDemo: () => request('/api/admin/reset-demo/', { method: 'POST' }),
+
+  // ── Sahayak AI Engine (/api/ai/) ────────────────────────────────────────────
+  // Config
+  aiConfig: () => request('/api/ai/config/'),
+
+  // PS-level
+  aiPsOverview:    (psId)  => request(`/api/ai/ps/${psId}/overview/`),
+  aiPsQueue:       (psId, params = '') => request(`/api/ai/ps/${psId}/queue/${params ? '?' + params : ''}`),
+  aiPsRegenerate:  (psId)  => request(`/api/ai/ps/${psId}/regenerate/`, { method: 'POST' }),
+
+  // Per-submission
+  aiGetAnalysis:   (appId) => request(`/api/ai/submissions/${appId}/analysis/`),
+  aiRunAnalysis:   (appId) => request(`/api/ai/submissions/${appId}/analyze/`, { method: 'POST' }),
+  aiOverride:      (analysisId, data) =>
+    request(`/api/ai/analyses/${analysisId}/override/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  aiMarkReviewed:  (analysisId) =>
+    request(`/api/ai/analyses/${analysisId}/mark-reviewed/`, { method: 'POST' }),
+
+  // Rewrite
+  aiImprove:       (appId, mode) =>
+    request(`/api/ai/submissions/${appId}/improve/`, { method: 'POST', body: JSON.stringify({ mode }) }),
+  aiRewriteDecision: (rewriteId, action, editedText = '') =>
+    request(`/api/ai/rewrites/${rewriteId}/decision/`, {
+      method: 'POST',
+      body: JSON.stringify({ action, edited_text: editedText }),
+    }),
 };

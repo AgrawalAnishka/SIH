@@ -1,15 +1,14 @@
 """
-llm.py — OpenAI-powered engine for the GovLaunch KIRA chatbot.
+llm.py — Gemini-powered engine for the GovLaunch KIRA chatbot.
 
-Uses OPENAI_API_KEY from .env via kira/conf.py.
+Uses GEMINI_API_KEY from .env.
 Falls back to the rule-based engine if the key is missing or the call fails.
 """
 
 import json
 import logging
 import re
-
-from .conf import cfg
+import os
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class LLMError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Rule-based fallback (used when OpenAI is unavailable)
+# Rule-based fallback (used when Gemini is unavailable)
 # ---------------------------------------------------------------------------
 
 _QA: list[tuple[str, str]] = [
@@ -199,46 +198,71 @@ def _rule_based(messages: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# OpenAI call
+# Gemini call
 # ---------------------------------------------------------------------------
 
 def complete(messages: list[dict], max_tokens: int = 450, json_mode: bool = False) -> str:
     """
-    Call OpenAI if a key is configured, otherwise fall back to rule-based.
+    Call Gemini if GEMINI_API_KEY is set, otherwise fall back to rule-based.
     json_mode=True is used for summary/memory extraction by other kira modules.
     """
-    api_key = cfg("API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY", "")
 
     if not api_key:
-        log.warning("KIRA: OPENAI_API_KEY not set — using rule-based fallback.")
+        log.warning("KIRA: GEMINI_API_KEY not set — using rule-based fallback.")
         if json_mode:
             return json.dumps({"summary": "", "memories": []})
         return _rule_based(messages)
 
     try:
-        from openai import OpenAI  # lazy import — only when key is present
+        from google import genai
+        from google.genai import types
 
-        client = OpenAI(
-            api_key=api_key,
-            base_url=cfg("BASE_URL"),  # None = default OpenAI endpoint
-        )
+        client = genai.Client(api_key=api_key)
 
-        kwargs = {
-            "model":    cfg("MODEL"),
-            "messages": messages,
-            cfg("TOKEN_PARAM"): max_tokens,
+        # Convert OpenAI-style messages to Gemini format
+        # System message → system_instruction
+        # User/assistant turns → contents
+        system_instruction = None
+        contents = []
+
+        for m in messages:
+            role = m.get("role", "")
+            content = m.get("content", "")
+            if role == "system":
+                system_instruction = content
+            elif role == "user":
+                contents.append(types.Content(
+                    role="user",
+                    parts=[types.Part(text=content)]
+                ))
+            elif role == "assistant":
+                contents.append(types.Content(
+                    role="model",
+                    parts=[types.Part(text=content)]
+                ))
+
+        config_kwargs = {
+            "max_output_tokens": max_tokens,
+            "temperature": 0.7,
         }
         if json_mode:
-            kwargs["response_format"] = {"type": "json_object"}
+            config_kwargs["response_mime_type"] = "application/json"
+        if system_instruction:
+            config_kwargs["system_instruction"] = system_instruction
 
-        response = client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content or ""
+        response = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(**config_kwargs),
+        )
+
+        return response.text or ""
 
     except Exception as exc:
-        log.error("KIRA OpenAI call failed: %s", exc)
+        log.error("KIRA Gemini call failed: %s", exc)
         if json_mode:
             return json.dumps({"summary": "", "memories": []})
-        # Degrade gracefully to rule-based
         return _rule_based(messages)
 
 

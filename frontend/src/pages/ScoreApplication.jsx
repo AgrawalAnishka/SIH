@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { AlertTriangle, Lock, CheckCircle, ArrowLeft, ClipboardCheck } from 'lucide-react';
 import { api } from '../lib/api';
+import AiAnalysisPanel from '../features/ai-assist/AiAnalysisPanel';
 import TierBadge from '../components/TierBadge';
 import ProofOfDisclosure from '../components/ProofOfDisclosure';
 import { useToast } from '../components/ui/toast';
@@ -244,6 +245,14 @@ export default function ScoreApplication() {
             }}>
             {submitting ? 'Submitting…' : 'Submit Evaluation'}
           </motion.button>
+        </div>
+
+        {/* ── Right: Sahayak AI Panel ── */}
+        <div style={{ width: 340, flexShrink: 0, position: 'sticky', top: 24 }}>
+          <AiAnalysisPanel
+            appId={id}
+            solutionBrief={application?.solution_brief}
+          />
         </div>
       </div>
     </div>

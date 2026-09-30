@@ -6,6 +6,22 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         self.stdout.write("Clearing existing data...")
+        # Clear ai_assist tables first (FK deps)
+        try:
+            from ai_assist.models import (
+                SubmissionAnalysis, EvaluatorOverride, RewriteSuggestion,
+                ClusterGroup, PSInsight, AIActionLog
+            )
+            AIActionLog.objects.all().delete()
+            EvaluatorOverride.objects.all().delete()
+            RewriteSuggestion.objects.all().delete()
+            ClusterGroup.objects.all().delete()
+            SubmissionAnalysis.objects.all().delete()
+            PSInsight.objects.all().delete()
+            self.stdout.write("  ai_assist tables cleared.")
+        except Exception as e:
+            self.stdout.write(f"  ai_assist clear skipped: {e}")
+
         AuditLog.objects.all().delete()
         ScaleUpEntry.objects.all().delete()
         Contract.objects.all().delete()
@@ -205,3 +221,20 @@ class Command(BaseCommand):
         self.stdout.write(f"Applications: {Application.objects.count()}")
         self.stdout.write(f"EligibilityResults: {EligibilityResult.objects.count()}")
         self.stdout.write(f"ScaleUpEntries: {ScaleUpEntry.objects.count()}")
+
+        # ── Seed Sahayak AI analyses ───────────────────────────────────────────
+        self.stdout.write("Seeding Sahayak AI analyses...")
+        try:
+            from ai_assist.tasks import _run_analysis, _run_insight
+            from core.models import Application as App2
+            for app in App2.objects.all():
+                _run_analysis(app.id, force=True)
+            self.stdout.write("  Analyses generated.")
+            for challenge in Challenge.objects.all():
+                _run_insight(challenge.id, force=True)
+            self.stdout.write("  PS insights generated.")
+            from ai_assist.models import SubmissionAnalysis, PSInsight
+            self.stdout.write(f"  SubmissionAnalyses: {SubmissionAnalysis.objects.filter(status='done').count()}")
+            self.stdout.write(f"  PSInsights: {PSInsight.objects.filter(status='done').count()}")
+        except Exception as e:
+            self.stdout.write(f"  Sahayak seeding skipped: {e}")

@@ -30,6 +30,7 @@ import EvaluatorReview from './pages/EvaluatorReview';
 import ScoreApplication from './pages/ScoreApplication';
 import ScaleUpCatalog from './pages/ScaleUpCatalog';
 import AuditTrail from './pages/AuditTrail';
+import EvaluatorWorkspace from './pages/EvaluatorWorkspace';
 import Supervision from './pages/Supervision';
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ function AppRoutes() {
 
         {/* Evaluator */}
         <Route path="/evaluate"     element={<ProtectedRoute allowedRoles={['evaluator']}><AppLayout><EvaluatorReview /></AppLayout></ProtectedRoute>} />
+        <Route path="/evaluate/ps/:psId" element={<ProtectedRoute allowedRoles={['evaluator','admin']}><AppLayout><EvaluatorWorkspace /></AppLayout></ProtectedRoute>} />
         <Route path="/evaluate/:id" element={<ProtectedRoute allowedRoles={['evaluator']}><AppLayout><ScoreApplication /></AppLayout></ProtectedRoute>} />
 
         {/* All roles */}

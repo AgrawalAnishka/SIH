@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'motion/react';
-import { ClipboardCheck, Clock, CheckCircle, AlertCircle, ArrowRight, Star } from 'lucide-react';
+import { ClipboardCheck, Clock, CheckCircle, AlertCircle, ArrowRight, Star, Brain } from 'lucide-react';
 import { api } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import Reveal, { StaggerReveal } from '../components/Reveal';
@@ -161,6 +161,57 @@ export default function EvaluatorReview() {
           ))
         )}
       </div>
+      </Reveal>
+
+      {/* ── Sahayak AI Workspace CTA ── */}
+      <Reveal direction="up" delay={0.3}>
+        <div style={{
+          marginTop: 20, padding: '20px 24px', borderRadius: 16,
+          background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
+          border: '1px solid #DDD6FE',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 16, flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Brain size={22} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#4C1D95' }}>Sahayak AI Workspace</div>
+              <div style={{ fontSize: 12, color: '#6D28D9' }}>
+                AI priority queue, clusters, and insights for each challenge
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {/* Show workspace button for each unique challenge */}
+            {[...new Map(applications.map(a => [a.challenge, a])).values()]
+              .slice(0, 4)
+              .map(app => (
+                <motion.button
+                  key={app.challenge}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => navigate(`/evaluate/ps/${app.challenge}`)}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
+                    background: '#7C3AED', color: '#fff',
+                    border: 'none', fontSize: 12, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Brain size={13} />
+                  {app.challenge_title
+                    ? app.challenge_title.slice(0, 28) + (app.challenge_title.length > 28 ? '…' : '')
+                    : `Challenge #${app.challenge}`}
+                </motion.button>
+              ))}
+          </div>
+        </div>
       </Reveal>
     </div>
   );
